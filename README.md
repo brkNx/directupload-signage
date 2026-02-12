@@ -17,6 +17,12 @@ Upload an MP4 from any device → it plays full-screen on a TV via HDMI.
                                    └─────────────────────────┘
 ```
 
+## Screenshots
+
+| Admin Panel | Login | Player |
+|:-----------:|:-----:|:------:|
+| ![Admin](screenshots/admin.png) | ![Login](screenshots/login.png) | ![Player](screenshots/player.png) |
+
 ## Prerequisites
 
 ```bash
