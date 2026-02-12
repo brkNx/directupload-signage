@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DirectUpload Signage</title>
+    <style>
+        /* ── Reset ────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            cursor: none;           /* Hide cursor on kiosk display */
+        }
+
+        /* ── Video Player ─────────────────────────────────────── */
+        #videoPlayer {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;    /* Fit video within screen, no crop */
+            background: #000;
+            z-index: 1;
+        }
+
+        /* ── Splash Overlay ───────────────────────────────────── */
+        #splash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s ease;
+        }
+        #splash.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .splash-icon {
+            font-size: 4rem;
+            margin-bottom: 24px;
+        }
+
+        .splash-title {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 32px;
+            letter-spacing: -0.02em;
+        }
+
+        .splash-url-label {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 1rem;
+            color: #a1a1aa;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+        }
+
+        .splash-url {
+            font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #6366f1;
+            background: #1a1b23;
+            padding: 16px 32px;
+            border-radius: 10px;
+            border: 1px solid #2a2b35;
+            max-width: 90vw;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        .splash-admin-hint {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 0.95rem;
+            color: #a1a1aa;
+            margin-top: 20px;
+        }
+        .splash-admin-hint strong {
+            color: #e4e4e7;
+        }
+
+        .splash-timer {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 0.85rem;
+            color: #52525b;
+            margin-top: 40px;
+        }
+
+        /* ── No-Video Fallback ────────────────────────────────── */
+        #noVideo {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #52525b;
+        }
+        #noVideo .icon { font-size: 3rem; margin-bottom: 16px; }
+        #noVideo p { font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="splash">
+        <div class="splash-icon">📺</div>
+        <div class="splash-title">DirectUpload Signage</div>
+
+        <div class="splash-url-label">Admin Panel</div>
+        <div class="splash-url">{{ tunnel_url }}/admin</div>
+
+        <div class="splash-admin-hint">
+            Open the URL above to upload content.
+        </div>
+
+        <div class="splash-timer" id="timerText">Dismissing in 10s…</div>
+    </div>
+
+    {% if has_video %}
+    <video id="videoPlayer" muted playsinline preload="auto">
+        <source src="/static/video.mp4" type="video/mp4">
+    </video>
+    {% else %}
+    <div id="noVideo">
+        <div class="icon">🎬</div>
+        <p>No video uploaded yet. Use the Admin Panel to upload one.</p>
+    </div>
+    {% endif %}
+
+    <script>
+        (function () {
+            "use strict";
+
+            var SPLASH_DURATION = 10;   // seconds
+            
+            // 🔥 GÜNCELLENDİ: 2 Saat (saniye cinsinden)
+            var REFRESH_INTERVAL = 2 * 60 * 60 * 1000; 
+            
+            var pageLoadTime = Date.now();
+
+            var splash   = document.getElementById("splash");
+            var timerEl  = document.getElementById("timerText");
+            var video    = document.getElementById("videoPlayer");
+            var remaining = SPLASH_DURATION;
+
+            /* ── Countdown Display ──────────────────────────── */
+            var countdown = setInterval(function () {
+                remaining--;
+                if (remaining > 0) {
+                    timerEl.textContent = "Dismissing in " + remaining + "s\u2026";
+                } else {
+                    timerEl.textContent = "";
+                    clearInterval(countdown);
+                }
+            }, 1000);
+
+            /* ── Dismiss Splash after duration ─────────── */
+            setTimeout(function () {
+                if (splash) splash.classList.add("fade-out");
+
+                if (video) {
+                    // Videoyu başlat
+                    var playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(function () {
+                            video.muted = true;
+                            video.play();
+                        });
+                    }
+
+                    // 🧠 AKILLI YENİLEME MANTIĞI 🧠
+                    video.addEventListener('ended', function() {
+                        var currentTime = Date.now();
+                        
+                        // Eğer sayfa açılalı 2 saatten fazla olmuşsa YENİLE
+                        if (currentTime - pageLoadTime > REFRESH_INTERVAL) {
+                            console.log("Refreshing page to clear memory...");
+                            location.reload(true);
+                        } else {
+                            // Süre dolmadıysa BAŞA SAR ve OYNAT
+                            video.currentTime = 0;
+                            video.play();
+                        }
+                    });
+                }
+
+                setTimeout(function () {
+                    if (splash && splash.parentNode) {
+                        splash.parentNode.removeChild(splash);
+                    }
+                }, 900);
+
+            }, SPLASH_DURATION * 1000);
+
+            /* ── Auto-Refresh on New Upload ───────── */
+            var lastModified = "";
+            setInterval(function () {
+                var xhr = new XMLHttpRequest();
+                xhr.open("HEAD", "/static/video.mp4?t=" + Date.now(), true);
+                xhr.onload = function () {
+                    var mod = xhr.getResponseHeader("Last-Modified");
+                    if (mod && lastModified && mod !== lastModified) {
+                        location.reload(true);
+                    }
+                    if (mod) lastModified = mod;
+                };
+                xhr.send();
+            }, 30000);
+
+        })();
+    </script>
+</body>
+</html>

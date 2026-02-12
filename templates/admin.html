@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DirectUpload Signage — Admin</title>
+    <link rel="icon" type="image/png" href="/static/directupload-signage-icon.png">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0f1117;
+            color: #e4e4e7;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card {
+            background: #1a1b23;
+            border: 1px solid #2a2b35;
+            border-radius: 12px;
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 480px;
+        }
+        .card h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+        .card .subtitle { font-size: 0.85rem; color: #71717a; margin-bottom: 28px; }
+
+        /* Status */
+        .status {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
+        }
+        .status.active  { background: #062a1e; color: #34d399; }
+        .status.empty   { background: #2a1f00; color: #fbbf24; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status.active .dot { background: #34d399; }
+        .status.empty  .dot { background: #fbbf24; }
+
+        /* Flash / Alerts */
+        .alert {
+            padding: 12px 16px; border-radius: 8px;
+            font-size: 0.85rem; margin-bottom: 20px; display: none;
+        }
+        .alert.success { background: #062a1e; color: #34d399; border: 1px solid #0d5a3e; display: block; }
+        .alert.error   { background: #2a0f0f; color: #f87171; border: 1px solid #5a1d1d; display: block; }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #3a3b45; border-radius: 10px;
+            padding: 32px 20px; text-align: center; margin-bottom: 20px;
+            transition: border-color 0.2s; cursor: pointer; position: relative;
+        }
+        .upload-area:hover, .upload-area.dragover { border-color: #6366f1; }
+        .upload-area svg { width: 40px; height: 40px; stroke: #6366f1; margin-bottom: 12px; }
+        .upload-area p { font-size: 0.85rem; color: #a1a1aa; }
+        .upload-area .filename {
+            font-size: 0.9rem; color: #e4e4e7; font-weight: 600;
+            margin-top: 8px; word-break: break-all;
+        }
+        input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+        /* Progress */
+        .progress-wrap { display: none; margin-bottom: 20px; }
+        .progress-wrap.visible { display: block; }
+        .progress-bar { height: 10px; background: #2a2b35; border-radius: 5px; overflow: hidden; }
+        .progress-bar .fill {
+            height: 100%; width: 0%; border-radius: 5px;
+            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #6366f1, #818cf8);
+        }
+        .progress-stats {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 8px; font-size: 0.78rem; color: #a1a1aa;
+        }
+        .progress-phase {
+            font-size: 0.82rem; color: #c4b5fd; margin-bottom: 8px; font-weight: 500;
+        }
+
+        /* Button */
+        .btn {
+            display: block; width: 100%; padding: 14px;
+            background: #6366f1; color: #fff; font-size: 0.95rem; font-weight: 600;
+            border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;
+        }
+        .btn:hover { background: #4f46e5; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.cancel { background: #dc2626; margin-top: 10px; }
+        .btn.cancel:hover { background: #b91c1c; }
+
+        /* Info */
+        .info {
+            margin-top: 24px; font-size: 0.75rem; color: #52525b;
+            text-align: center; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>📺 DirectUpload Signage</h1>
+        <a href="/logout" style="float: right; color: #f87171; text-decoration: none; font-size: 0.9rem; border: 1px solid #7f1d1d; padding: 5px 10px; border-radius: 5px;">Exit</a>
+        <p class="subtitle">Upload an MP4 to update the display instantly.</p>
+
+        {% if has_video %}
+        <div class="status active"><span class="dot"></span> Video loaded ({{ video_size_mb }} MB)</div>
+        {% else %}
+        <div class="status empty"><span class="dot"></span> No video — upload one below</div>
+        {% endif %}
+
+        <div class="alert" id="alertBox"></div>
+
+        <div id="uploadForm">
+            <div class="upload-area" id="dropZone">
+                <input type="file" id="fileInput" accept=".mp4,video/mp4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25
+                             2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5
+                             4.5M12 3v13.5"/>
+                </svg>
+                <p>Click or drag an MP4 file here</p>
+                <div class="filename" id="fileName"></div>
+            </div>
+
+            <div class="progress-wrap" id="progressWrap">
+                <div class="progress-phase" id="progressPhase">Preparing upload…</div>
+                <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+                <div class="progress-stats">
+                    <span id="progressPct">0%</span>
+                    <span id="progressDetail">0 / 0 MB</span>
+                    <span id="progressSpeed"></span>
+                </div>
+            </div>
+
+            <button type="button" class="btn" id="submitBtn" disabled>Upload Video</button>
+            <button type="button" class="btn cancel" id="cancelBtn" style="display:none">Cancel Upload</button>
+            <button type="button" id="rebootBtn" style="background: #7f1d1d; color: white; border: 1px solid #991b1b; padding: 10px; width: 100%; border-radius: 8px; margin-top: 30px; cursor: pointer; font-size: 0.8rem;">
+    ⚠️REBOOT
+</button>
+
+<script>
+    // ... (Eski scriptlerin aynen kalsın, bunu en alta ekle) ...
+
+    document.getElementById("rebootBtn").addEventListener("click", function() {
+        if(confirm("Cihaz tamamen kapanıp yeniden açılacak. Onaylıyor musun?")) {
+            fetch("/reboot", { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                alert("Cihaz yeniden başlatılıyor! 1 dakika sonra sayfayı yenile.");
+            });
+        }
+    });
+</script>
+        </div>
+        <br><div style="background: #27272a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3f3f46;">
+            <h3 style="font-size: 0.9rem; color: #a1a1aa; margin-bottom: 10px; text-transform: uppercase;">System Health</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="color: #e4e4e7;">🌡️ Temperature:</span>
+                <span style="color: #fcd34d; font-weight: bold;">{{ cpu_temp }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #e4e4e7;">💾 Storage:</span>
+                <span style="color: #34d399; font-weight: bold;">{{ disk_space }}</span>
+            </div>
+        </div>
+
+        <div class="info">
+            Max file size: {{ max_video_gb }} GB &middot; Accepts .mp4 only &middot; Chunked upload (tunnel-safe)<br>
+            Tunnel: <strong>{{ tunnel_url }} <br><br>Powered by ONUR EFE ÇATALKAYA<br>** Secured by brkN **</strong>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        "use strict";
+
+        /* ── Config ─────────────────────────────────────────── */
+        var CHUNK_SIZE = 40 * 1024 * 1024;  // 40 MB per chunk (safe for CF tunnel)
+        var MAX_RETRIES = 3;
+
+        /* ── DOM refs ───────────────────────────────────────── */
+        var fileInput     = document.getElementById("fileInput");
+        var fileName      = document.getElementById("fileName");
+        var submitBtn     = document.getElementById("submitBtn");
+        var cancelBtn     = document.getElementById("cancelBtn");
+        var dropZone      = document.getElementById("dropZone");
+        var progressWrap  = document.getElementById("progressWrap");
+        var progressFill  = document.getElementById("progressFill");
+        var progressPct   = document.getElementById("progressPct");
+        var progressDetail = document.getElementById("progressDetail");
+        var progressSpeed = document.getElementById("progressSpeed");
+        var progressPhase = document.getElementById("progressPhase");
+        var alertBox      = document.getElementById("alertBox");
+
+        var cancelled = false;
+        var currentSessionId = null;
+
+        /* ── Helpers ────────────────────────────────────────── */
+        function showAlert(msg, type) {
+            alertBox.textContent = msg;
+            alertBox.className = "alert " + type;
+        }
+
+        function formatMB(bytes) { return (bytes / (1024 * 1024)).toFixed(1); }
+
+        function formatSpeed(bytesPerSec) {
+            if (bytesPerSec > 1024 * 1024) return (bytesPerSec / (1024 * 1024)).toFixed(1) + " MB/s";
+            return (bytesPerSec / 1024).toFixed(0) + " KB/s";
+        }
+
+        /* ── File Selection ─────────────────────────────────── */
+        fileInput.addEventListener("change", function () {
+            if (this.files.length) {
+                var f = this.files[0];
+                fileName.textContent = f.name + " (" + formatMB(f.size) + " MB)";
+                submitBtn.disabled = false;
+                alertBox.className = "alert";
+            }
+        });
+
+        ["dragenter", "dragover"].forEach(function (evt) {
+            dropZone.addEventListener(evt, function (e) { e.preventDefault(); dropZone.classList.add("dragover"); });
+        });
+        ["dragleave", "drop"].forEach(function (evt) {
+            dropZone.addEventListener(evt, function (e) { e.preventDefault(); dropZone.classList.remove("dragover"); });
+        });
+
+        /* ── Cancel ─────────────────────────────────────────── */
+        cancelBtn.addEventListener("click", function () {
+            cancelled = true;
+            if (currentSessionId) {
+                fetch("/upload/cancel", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sessionId: currentSessionId })
+                });
+            }
+        });
+
+        /* ── Upload with retry ──────────────────────────────── */
+        function sendChunk(sessionId, blob, index, attempt) {
+            return new Promise(function (resolve, reject) {
+                var fd = new FormData();
+                fd.append("sessionId", sessionId);
+                fd.append("chunkIndex", index);
+                fd.append("chunk", blob, "chunk.part");
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/upload/chunk");
+                xhr.timeout = 120000;  // 2 min per chunk
+
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        resolve();
+                    } else if (attempt < MAX_RETRIES) {
+                        setTimeout(function () {
+                            resolve(sendChunk(sessionId, blob, index, attempt + 1));
+                        }, 2000 * attempt);
+                    } else {
+                        reject(new Error("Chunk " + index + " failed after " + MAX_RETRIES + " retries."));
+                    }
+                };
+                xhr.onerror = xhr.ontimeout = function () {
+                    if (attempt < MAX_RETRIES) {
+                        setTimeout(function () {
+                            resolve(sendChunk(sessionId, blob, index, attempt + 1));
+                        }, 2000 * attempt);
+                    } else {
+                        reject(new Error("Chunk " + index + " — network error after retries."));
+                    }
+                };
+                xhr.send(fd);
+            });
+        }
+
+        /* ── Main Upload Flow ───────────────────────────────── */
+        submitBtn.addEventListener("click", async function () {
+            var file = fileInput.files[0];
+            if (!file) return;
+
+            cancelled = false;
+            submitBtn.disabled = true;
+            submitBtn.style.display = "none";
+            cancelBtn.style.display = "block";
+            dropZone.style.display = "none";
+            progressWrap.classList.add("visible");
+            alertBox.className = "alert";
+
+            var totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            var totalBytes = file.size;
+
+            /* Step 1: Init session */
+            progressPhase.textContent = "Initializing upload…";
+            try {
+                var initRes = await fetch("/upload/init", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        totalChunks: totalChunks,
+                        fileSize: file.size
+                    })
+                });
+                var initData = await initRes.json();
+                if (!initRes.ok) throw new Error(initData.error || "Init failed");
+                currentSessionId = initData.sessionId;
+            } catch (err) {
+                showAlert("Init failed: " + err.message, "error");
+                resetUI();
+                return;
+            }
+
+            /* Step 2: Send chunks sequentially */
+            var uploaded = 0;
+            var startTime = Date.now();
+
+            for (var i = 0; i < totalChunks; i++) {
+                if (cancelled) {
+                    showAlert("Upload cancelled.", "error");
+                    resetUI();
+                    return;
+                }
+
+                var start = i * CHUNK_SIZE;
+                var end = Math.min(start + CHUNK_SIZE, file.size);
+                var blob = file.slice(start, end);
+
+                progressPhase.textContent = "Uploading chunk " + (i + 1) + " of " + totalChunks + "…";
+
+                try {
+                    await sendChunk(currentSessionId, blob, i, 1);
+                } catch (err) {
+                    showAlert("Upload failed: " + err.message, "error");
+                    resetUI();
+                    return;
+                }
+
+                uploaded += (end - start);
+                var pct = Math.round((uploaded / totalBytes) * 100);
+                progressFill.style.width = pct + "%";
+                progressPct.textContent = pct + "%";
+                progressDetail.textContent = formatMB(uploaded) + " / " + formatMB(totalBytes) + " MB";
+
+                var elapsed = (Date.now() - startTime) / 1000;
+                if (elapsed > 0) progressSpeed.textContent = formatSpeed(uploaded / elapsed);
+            }
+
+            /* Step 3: Assemble on server */
+            progressPhase.textContent = "Assembling video on server…";
+            progressFill.style.width = "100%";
+
+            try {
+                var finRes = await fetch("/upload/finish", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sessionId: currentSessionId })
+                });
+                var finData = await finRes.json();
+                if (!finRes.ok) throw new Error(finData.error || "Assembly failed");
+
+                progressPhase.textContent = "✓ Done!";
+                showAlert("Upload successful! " + finData.size_mb + " MB video is now playing.", "success");
+                setTimeout(function () { location.reload(); }, 2000);
+            } catch (err) {
+                showAlert("Assembly failed: " + err.message, "error");
+                resetUI();
+            }
+        });
+
+        function resetUI() {
+            submitBtn.disabled = false;
+            submitBtn.style.display = "block";
+            cancelBtn.style.display = "none";
+            dropZone.style.display = "block";
+            progressWrap.classList.remove("visible");
+            currentSessionId = null;
+        }
+
+    })();
+    </script>
+</body>
+</html>

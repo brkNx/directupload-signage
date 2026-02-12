@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="icon" type="image/png" href="/static/directupload-signage-icon.png">
+    <style>
+        body {
+            background: #0f1117; color: #e4e4e7;
+            font-family: -apple-system, system-ui, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; margin: 0;
+            /* 🛡️ Metin Seçimi Engelleme (Kopyalamaya karşı) */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .card {
+            background: #1a1b23; padding: 40px; border-radius: 12px;
+            border: 1px solid #2a2b35; width: 100%; max-width: 320px;
+            text-align: center;
+        }
+        input {
+            width: 100%; padding: 12px; margin: 20px 0;
+            background: #0f1117; border: 1px solid #3f3f46;
+            color: white; border-radius: 6px; box-sizing: border-box;
+        }
+        button {
+            width: 100%; padding: 12px; background: #6366f1;
+            color: white; border: none; border-radius: 6px;
+            font-weight: bold; cursor: pointer;
+        }
+        button:hover { background: #4f46e5; }
+        .error { color: #f87171; font-size: 0.9rem; margin-top: 10px; }
+        .info {
+            margin-top: 24px; font-size: 0.75rem; color: #52525b;
+            text-align: center; line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🔒 Admin Login</h2>
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter Password" required autofocus>
+            <button type="submit">Login</button>
+            
+            <div class="info">
+                Powered by ONUR EFE ÇATALKAYA<br>
+                <strong>** Secured by brkN **</strong>
+            </div>
+        </form>
+        
+        {% with messages = get_flashed_messages(category_filter=["error"]) %}
+            {% if messages %}
+                <div class="error">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <script>
+        // Sağ tık menüsünü engelle
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // Kısayol tuşlarını engelle
+        document.onkeydown = function(e) {
+            // F12
+            if(e.keyCode == 123) { return false; }
+            
+            // CTRL+I (İncele)
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+            
+            // CTRL+J (Konsol)
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+            
+            // CTRL+U (Kaynağı Görüntüle)
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
+            
+            // CTRL+S (Kaydet)
+            if(e.ctrlKey && e.keyCode == 'S'.charCodeAt(0)) { return false; }
+        }
+    </script>
+</body>
+</html>
