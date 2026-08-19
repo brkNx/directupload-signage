@@ -33,8 +33,8 @@ sudo apt update && sudo apt install -y chromium-browser python3-pip
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 \
   -o /usr/local/bin/cloudflared && sudo chmod +x /usr/local/bin/cloudflared
 
-# Install Flask
-pip3 install flask --break-system-packages
+# Install dependencies (from requirements.txt)
+pip3 install -r requirements.txt --break-system-packages
 ```
 
 ## Quick Start
